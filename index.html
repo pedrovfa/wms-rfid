@@ -274,13 +274,36 @@
           container.insertBefore(itemCard, container.firstChild);
 
           // Transmissão para a folha de cálculo aberta no computador
-          transmitirParaWMS({
-            dataHora: dataHoraCompleta,
-            uid: uidRaw,
-            sku: dadosItem.sku,
-            produto: dadosItem.produto,
-            status: "Recebido na Doca"
-          });
+          // Disparo HTTP blindado para o Google Apps Script
+              function transmitirParaWMS(payload) {
+                const params = new URLSearchParams({
+                  uid: payload.uid,
+                  sku: payload.sku,
+                  produto: payload.produto,
+                  dataHora: payload.dataHora,
+                  status: payload.status,
+                  _t: Date.now() // Evita qualquer cache de rede
+                });
+              
+                const urlCompleta = `${GOOGLE_SCRIPT_URL}?${params.toString()}`;
+              
+                // Método 1: Imagem fantasma em memória (Infalível contra bloqueios de CORS/Redirecionamento)
+                const beacon = new Image();
+                beacon.src = urlCompleta;
+              
+                // Método 2: Chamada fetch tradicional de redundância
+                try {
+                  fetch(urlCompleta, {
+                    method: "GET",
+                    mode: "no-cors",
+                    cache: "no-store"
+                  }).catch(() => {});
+                } catch (e) {
+                  // Ignora se o fetch falhar, o beacon garante a entrega
+                }
+              
+                console.log("LOGIX WMS: Sinal transmitido para o Google Sheets.");
+              }
         };
 
       } catch (err) {
