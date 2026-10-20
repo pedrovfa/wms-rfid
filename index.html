@@ -79,11 +79,11 @@
 
   <script>
     // -------------------------------------------------------------
-    // COLA AQUI O TEU LINK DO PASSO 2 (terminado em /exec):
+    // COLA AQUI A TUA URL COMPLETA (incluindo o ID AKfycb... antes de /exec):
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiwUiHwsjh4DQFNTC76-ihlNc39IwZvfbSDlnWcinO_Qk7Gv91rPVtrhxGIb4cml8T/exec";
     // -------------------------------------------------------------
 
-    // Toca o bip clássico de pistola de armazém
+    // Toca o bip sonoro de leitor industrial
     function bipSucesso() {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = audioCtx.createOscillator();
@@ -97,16 +97,24 @@
       osc.stop(audioCtx.currentTime + 0.1);
     }
 
+    // Envio seguro via GET com parâmetros de URL
     async function enviarParaGoogleSheets(payload) {
       try {
-        await fetch(GOOGLE_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+        const params = new URLSearchParams({
+          uid: payload.uid,
+          sku: payload.sku,
+          produto: payload.produto,
+          dataHora: payload.dataHora,
+          status: payload.status
         });
+
+        await fetch(`${GOOGLE_SCRIPT_URL}?${params.toString()}`, {
+          method: "GET",
+          mode: "no-cors"
+        });
+        console.log("Registo enviado para o Sheets com sucesso!");
       } catch (err) {
-        console.error("Erro no envio:", err);
+        console.error("Erro no envio para o Sheets:", err);
       }
     }
 
@@ -132,11 +140,10 @@
           const uid = (event.serialNumber || "UID-GERAL").toUpperCase();
           const dataHora = new Date().toLocaleString("pt-PT");
           
-          // Gera um nome e SKU realista baseado no UID da tag
           const sku = `SKU-TX-${uid.slice(-4)}`;
           const produto = "Caixa 50x Meias Algodão (Lote 2026)";
 
-          // Mostra no ecrã do telemóvel
+          // Renderiza o cartão visual no telemóvel
           const container = document.getElementById("historicoItens");
           const card = document.createElement("div");
           card.className = "card-item";
@@ -148,7 +155,7 @@
           container.insertBefore(card, container.firstChild);
           statusBox.innerHTML = `✅ <b>Conferido:</b> ${sku}`;
 
-          // Dispara para a folha de cálculo no computador
+          // Dispara para a folha no computador
           enviarParaGoogleSheets({
             dataHora: dataHora,
             uid: uid,
