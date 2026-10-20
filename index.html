@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terminal Doca WMS</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --primary: #2563eb;
+      --accent: #10b981;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 4px 0; color: #38bdf8; }
+    p.sub { margin: 0; font-size: 0.85rem; color: var(--muted); }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 16px;
+    }
+    .btn:disabled { opacity: 0.5; }
+    .status-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+    .card-item {
+      background: var(--card);
+      border-left: 4px solid var(--accent);
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .card-item .time { font-size: 0.75rem; color: var(--muted); }
+    .card-item .title { font-weight: 600; color: var(--text); font-size: 0.95rem; margin-top: 2px; }
+    .card-item .uid { font-family: monospace; font-size: 0.8rem; color: #38bdf8; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Terminal de Doca (WMS)</h1>
+    <p class="sub">Scanner RFID / Entrada de Stock em Tempo Real</p>
+  </div>
+
+  <button class="btn" id="btnScan" onclick="iniciarScanner()">▶ Ativar Scanner RFID</button>
+
+  <div class="status-box" id="statusBox">
+    Status: <b>Aguardando ativação do leitor...</b>
+  </div>
+
+  <div id="historicoItens"></div>
+
+  <script>
+    // -------------------------------------------------------------
+    // COLA AQUI O TEU LINK DO PASSO 2 (terminado em /exec):
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiwUiHwsjh4DQFNTC76-ihlNc39IwZvfbSDlnWcinO_Qk7Gv91rPVtrhxGIb4cml8T/exec";
+    // -------------------------------------------------------------
+
+    // Toca o bip clássico de pistola de armazém
+    function bipSucesso() {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(1400, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    async function enviarParaGoogleSheets(payload) {
+      try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.error("Erro no envio:", err);
+      }
+    }
+
+    async function iniciarScanner() {
+      const statusBox = document.getElementById("statusBox");
+      const btn = document.getElementById("btnScan");
+
+      if (!("NDEFReader" in window)) {
+        statusBox.innerHTML = "❌ <b>NFC não suportado.</b> Abre no Chrome no Android via HTTPS.";
+        statusBox.style.borderColor = "#ef4444";
+        return;
+      }
+
+      try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        statusBox.innerHTML = "🟢 <b>Leitor Ativo:</b> Aproxime o telemóvel da caixa selada...";
+        statusBox.style.borderColor = "#10b981";
+        btn.disabled = true;
+
+        ndef.onreading = event => {
+          bipSucesso();
+          const uid = (event.serialNumber || "UID-GERAL").toUpperCase();
+          const dataHora = new Date().toLocaleString("pt-PT");
+          
+          // Gera um nome e SKU realista baseado no UID da tag
+          const sku = `SKU-TX-${uid.slice(-4)}`;
+          const produto = "Caixa 50x Meias Algodão (Lote 2026)";
+
+          // Mostra no ecrã do telemóvel
+          const container = document.getElementById("historicoItens");
+          const card = document.createElement("div");
+          card.className = "card-item";
+          card.innerHTML = `
+            <div class="time">${dataHora}</div>
+            <div class="title">${produto}</div>
+            <div class="uid">UID: ${uid} | ${sku}</div>
+          `;
+          container.insertBefore(card, container.firstChild);
+          statusBox.innerHTML = `✅ <b>Conferido:</b> ${sku}`;
+
+          // Dispara para a folha de cálculo no computador
+          enviarParaGoogleSheets({
+            dataHora: dataHora,
+            uid: uid,
+            sku: sku,
+            produto: produto,
+            status: "Recebido na Doca"
+          });
+        };
+
+      } catch (e) {
+        statusBox.innerHTML = `Erro ao aceder ao NFC: ${e.message}`;
+        statusBox.style.borderColor = "#ef4444";
+      }
+    }
+  </script>
+</body>
+</html>
