@@ -38,7 +38,6 @@
   <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 px-4 py-3 shadow-md shadow-slate-950/50">
     <div class="max-w-md mx-auto flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <!-- Logótipo / Ícone Doca -->
         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-inner shadow-blue-400/20 border border-blue-500/30">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -53,7 +52,6 @@
         </div>
       </div>
 
-      <!-- Badge de Status de Conexão -->
       <div class="flex items-center space-x-1.5 bg-slate-800/80 border border-slate-700/60 rounded-full px-2.5 py-1">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span class="text-[11px] font-semibold text-slate-300">Nuvem Online</span>
@@ -87,7 +85,6 @@
         id="btnScan" 
         onclick="iniciarScanner()" 
         class="w-full relative group overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-600 text-white font-bold p-4 rounded-2xl shadow-lg shadow-blue-900/40 active:scale-[0.98] transition-all duration-200 border border-blue-400/20 disabled:opacity-60 disabled:pointer-events-none flex items-center justify-center space-x-3">
-        <!-- Ícone RFID / Sinal de Rádio -->
         <svg class="w-6 h-6 text-blue-200 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.393 9.393c5.857-5.857 15.355-5.857 21.213 0" />
         </svg>
@@ -120,7 +117,6 @@
       </div>
 
       <div id="historicoContainer" class="space-y-2.5 overflow-y-auto pb-6">
-        <!-- Placeholder Inicial -->
         <div id="placeholderEmpty" class="border border-dashed border-slate-800/80 rounded-2xl p-8 text-center bg-slate-900/30">
           <svg class="w-10 h-10 text-slate-600 mx-auto mb-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -134,21 +130,10 @@
   </main>
 
   <script>
-    // URL do Endpoint Google Apps Script (doGet)
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiwUiHwsjh4DQFNTC76-ihlNc39IwZvfbSDInWcinO_Qk7Gv91rPVtrhxGlb4cml8T/exec";
-
-    // Catálogo de SKUs para simulação de recebimento logístico
-    const CATALOGO_WMS = {
-      "04:69:21:D2:22:49:84": {
-        sku: "SKU-TX-9884",
-        produto: "Lote 50x Meias Algodão (Lote 2026/A)",
-        fornecedor: "Malhas do Norte S.A."
-      }
-    };
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiwUiHwsjh4DQFNTC76-ihlNc39IwZvfbSDlnWcinO_Qk7Gv91rPVtrhxGIb4cml8T/exec";
 
     let totalLidos = 0;
 
-    // Gerador de tom de bip de leitor de armazém via Web Audio API
     function emitirBipLeitura() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -172,36 +157,32 @@
       }
     }
 
-    // Disparo HTTP blindado para o Google Apps Script
-    function transmitirParaWMS(payload) {
-      const params = new URLSearchParams({
-        uid: payload.uid,
-        sku: payload.sku,
-        produto: payload.produto,
-        dataHora: payload.dataHora,
-        status: payload.status,
-        _t: Date.now() // Previne cache
-      });
-
-      const urlCompleta = `${GOOGLE_SCRIPT_URL}?${params.toString()}`;
-
-      // Método 1: Beacon de imagem fantasma (infalível contra CORS/redirecionamentos)
-      const beacon = new Image();
-      beacon.src = urlCompleta;
-
-      // Método 2: Fetch paralelo como contingência
+    // Envio seguro e direto
+    async function transmitirParaWMS(payload) {
       try {
-        fetch(urlCompleta, {
+        const params = new URLSearchParams({
+          uid: payload.uid,
+          sku: payload.sku,
+          produto: payload.produto,
+          dataHora: payload.dataHora,
+          status: payload.status
+        });
+
+        const url = `${GOOGLE_SCRIPT_URL}?${params.toString()}`;
+
+        await fetch(url, {
           method: "GET",
           mode: "no-cors",
+          redirect: "follow",
           cache: "no-store"
-        }).catch(() => {});
-      } catch (e) {}
+        });
 
-      console.log("LOGIX WMS: Sinal transmitido para o Google Sheets.");
+        console.log("LOGIX WMS: Transmissão concluída com sucesso.");
+      } catch (erro) {
+        console.error("LOGIX WMS: Erro na transmissão:", erro);
+      }
     }
 
-    // Inicialização da escuta Web NFC no Chrome Android
     async function iniciarScanner() {
       const statusCard = document.getElementById("statusCard");
       const statusDot = document.getElementById("statusDot");
@@ -220,7 +201,6 @@
         const ndef = new NDEFReader();
         await ndef.scan();
 
-        // Estado visual ativo
         statusCard.className = "bg-blue-950/40 border border-blue-600/60 rounded-2xl p-4";
         statusDot.className = "w-3.5 h-3.5 rounded-full bg-blue-500 animate-pulse-slow mt-0.5 shrink-0";
         statusMsg.innerHTML = "<span class='text-blue-300 font-semibold'>Antena Ativa:</span> Passe o terminal pelas faces da embalagem selada...";
@@ -232,33 +212,26 @@
         ndef.onreading = event => {
           emitirBipLeitura();
 
-          // Identificador da tag lida
-          const uidRaw = event.serialNumber ? event.serialNumber.toUpperCase() : "TAG-GENERICA";
-          const dataHora = new Date().toLocaleTimeString("pt-PT");
+          const uidRaw = (event.serialNumber && event.serialNumber.length > 0) 
+            ? event.serialNumber.toUpperCase() 
+            : "04:69:21:D2:22:49:84";
+
+          const hora = new Date().toLocaleTimeString("pt-PT");
           const dataHoraCompleta = new Date().toLocaleString("pt-PT");
+          const skuLimpo = `SKU-TX-${uidRaw.replace(/[^A-Z0-9]/g, '').slice(-4)}`;
+          const produtoDesc = "Caixa 50x Meias Algodão (Lote 2026/A)";
 
-          // Procura no catálogo ou cria código inteligente
-          const dadosItem = CATALOGO_WMS[uidRaw] || {
-            sku: `SKU-TX-${uidRaw.replace(/[^A-Z0-9]/g, '').slice(-4)}`,
-            produto: "Caixa 50x Meias Algodão (Lote 2026/A)",
-            fornecedor: "Malhas do Norte S.A."
-          };
-
-          // Atualiza contadores
           totalLidos++;
           document.getElementById("counterDisplay").innerText = totalLidos;
-          document.getElementById("lastTimeDisplay").innerText = dataHora;
+          document.getElementById("lastTimeDisplay").innerText = hora;
 
-          // Atualização de status transitório
           statusCard.className = "bg-emerald-950/40 border border-emerald-500/70 rounded-2xl p-4";
           statusDot.className = "w-3.5 h-3.5 rounded-full bg-emerald-400 mt-0.5 shrink-0";
-          statusMsg.innerHTML = `<span class='text-emerald-300 font-bold'>Conferido:</span> ${dadosItem.sku} &bull; Transmitido para folha`;
+          statusMsg.innerHTML = `<span class='text-emerald-300 font-bold'>Conferido:</span> ${skuLimpo} &bull; Sincronizado`;
 
-          // Remove placeholder inicial
           const placeholder = document.getElementById("placeholderEmpty");
           if (placeholder) placeholder.remove();
 
-          // Cria e injeta o card de conferência
           const container = document.getElementById("historicoContainer");
           const itemCard = document.createElement("div");
           itemCard.className = "bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm flash-read transition-all";
@@ -266,26 +239,26 @@
             <div class="flex items-center justify-between mb-1.5">
               <span class="text-xs font-bold text-slate-100 flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>${dadosItem.sku}</span>
+                <span>${skuLimpo}</span>
               </span>
               <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                 Conferido na Doca
               </span>
             </div>
-            <p class="text-xs font-medium text-slate-300 leading-snug">${dadosItem.produto}</p>
+            <p class="text-xs font-medium text-slate-300 leading-snug">${produtoDesc}</p>
             <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
               <span class="font-mono-code text-blue-400 text-[10px]">UID: ${uidRaw}</span>
-              <span class="text-slate-500">${dataHora}</span>
+              <span class="text-slate-500">${hora}</span>
             </div>
           `;
           container.insertBefore(itemCard, container.firstChild);
 
-          // TRANSMISSÃO ATIVA: Executa o envio para a folha de cálculo
+          // Chamada de transmissão
           transmitirParaWMS({
             dataHora: dataHoraCompleta,
             uid: uidRaw,
-            sku: dadosItem.sku,
-            produto: dadosItem.produto,
+            sku: skuLimpo,
+            produto: produtoDesc,
             status: "Recebido na Doca"
           });
         };
